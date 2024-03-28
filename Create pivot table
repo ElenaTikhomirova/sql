@@ -1,0 +1,22 @@
+Формулировка: 
+
+Собрать информацию в виде сводной таблицы с разбивкой по полу - сколько первых договоров было заключено в 2020 году, сколько вторых и так далее. 
+
+Решение:
+
+with a as (
+  select
+	*, 
+    row_number() over(partition by c.client_id order by loan_date) as rn
+  from loans_table l
+  join clients_table c
+  on l.client_id = c.client_id
+)
+select 
+	gender, 
+    count(case when rn = 1 then 1 end) as "1", 
+    count(case when rn = 2 then 1 end) as "2", 
+    count(case when rn = 3 then 1 end) as "1"
+ from a 
+ where extract(year from loan_date) = 2020
+ group by gender

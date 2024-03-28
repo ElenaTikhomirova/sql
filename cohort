@@ -1,0 +1,22 @@
+Код:
+
+ with a as (
+   select
+    l.client_id, 
+    gender as gender, 
+    to_char(first_value(loan_date) over(partition by l.client_id order by loan_date), 'YYYY') as cohort, 
+    loan_date - first_value(loan_date) over(partition by l.client_id order by loan_date) as diff, 
+    loan_amount
+  from loans_table l
+  join clients_table c
+  on l.client_id = c.client_id
+ )
+ select
+  	gender, 
+    cohort, 
+    sum(case when diff >= 0 and diff < 180 then loan_amount end) as "0", 
+    sum(case when diff >= 180 and diff < 365 then loan_amount end) as "0.5", 
+    sum(case when diff >= 365 and diff < 545 then loan_amount end) as "1"
+ from a 
+ group by 1, 2
+ order by 1, 2

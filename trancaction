@@ -1,0 +1,119 @@
+
+CREATE TABLE transactions (
+    client_id INT,
+    transaction_date DATE,
+    transaction_value DECIMAL(10, 2)
+);
+
+-- Заполняем таблицу transactions
+INSERT INTO transactions (client_id, transaction_date, transaction_value) VALUES
+    (1, '2019-01-07'::date, 100.00),
+    (2, '2019-02-01'::date, 150.50),
+    (1, '2020-01-01'::date, 75.25),
+    (3, '2019-03-01'::date, 200.75),
+    (2, '2019-04-01'::date, 120.50),
+    (1, '2020-02-01'::date, 50.00),
+    (3, '2020-03-01'::date, 300.25),
+    (2, '2020-04-01'::date, 80.50),
+    (1, '2020-05-01'::date, 120.00),
+    (3, '2020-06-01'::date, 180.75),
+    (2, '2020-07-01'::date, 90.50),
+    (1, '2020-08-01'::date, 40.00),
+    (3, '2020-09-01'::date, 250.25),
+    (2, '2020-10-01'::date, 110.50),
+    (1, '2020-11-01'::date, 60.00),
+    (3, '2020-12-01'::date, 120.75),
+    (2, '2021-01-01'::date, 180.50),
+    (1, '2021-02-01'::date, 220.00),
+    (3, '2021-03-01'::date, 80.25),
+    (2, '2021-04-01'::date, 130.50),
+    (1, '2021-05-01'::date, 170.00),
+    (3, '2021-06-01'::date, 200.75),
+    (2, '2021-07-01'::date, 90.50),
+    (1, '2021-08-01'::date, 110.00),
+    (3, '2021-09-01'::date, 60.25),
+    (2, '2021-10-01'::date, 100.50),
+    (1, '2021-11-01'::date, 140.00),
+    (3, '2021-12-01'::date, 170.75),
+    (2, '2022-01-01'::date, 120.50);
+
+
+-- Создаем таблицу clients
+CREATE TABLE clients (
+    client_id SERIAL PRIMARY KEY,
+    client_name VARCHAR(255),
+    is_actual INT
+);
+
+-- Заполняем таблицу clients
+INSERT INTO clients (client_name, is_actual)
+VALUES
+    ('Client1', 1),
+    ('Client2', 1),
+    ('Client3', 0),
+    ('Client4', 1),
+    ('Client5', 0),
+    ('Client6', 1),
+    ('Client7', 0),
+    ('Client8', 1),
+    ('Client9', 0),
+    ('Client10', 1),
+    ('Client11', 1),
+    ('Client12', 0),
+    ('Client13', 1),
+    ('Client14', 0),
+    ('Client15', 1),
+    ('Client16', 1),
+    ('Client17', 0),
+    ('Client18', 1),
+    ('Client19', 0),
+    ('Client20', 1),
+    ('Client21', 1),
+    ('Client22', 0),
+    ('Client23', 1),
+    ('Client24', 0),
+    ('Client25', 1),
+    ('Client26', 1),
+    ('Client27', 0),
+    ('Client28', 1),
+    ('Client29', 0),
+    ('Client30', 1)
+RETURNING *; -- Возврат client_id для каждой вставленной записи
+
+WITH calendar AS (
+    SELECT generate_series(
+        '2019-01-01'::date, 
+        '2020-12-31'::date, 
+        '1 month'::interval
+    ) AS cal
+), 
+full_transaction AS (
+    SELECT 
+        tr.client_id,
+        c.client_name,
+        tr.transaction_date,
+        tr.transaction_value
+    FROM transactions tr
+    JOIN clients c ON tr.client_id = c.client_id
+    WHERE c.is_actual = 1 
+    UNION ALL
+    SELECT 
+        c.client_id,
+        c.client_name,
+        '1900-01-01'::date,
+        0
+    from transactions tr
+    join clients c
+    on tr.client_id = c.client_id
+    WHERE c.is_actual = 1
+)
+SELECT 
+    client_id,
+    client_name,
+    cal,
+    SUM(tr.transaction_value) AS total_transaction_value
+FROM full_transaction tr
+join calendar c
+on tr.transaction_date < c.cal
+GROUP BY client_id, client_name, cal
+ORDER BY 1, 2, 3;
