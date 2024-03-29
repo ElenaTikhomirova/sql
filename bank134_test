@@ -1,0 +1,124 @@
+Задачи на операции с одной таблицей (без джойнов и подзапросов):
+В каких категориях имеется несколько товаров от одного и того же поставщика?
+SELECT CategoryID, SupplierID, COUNT(*) AS TotalProducts
+FROM Products
+GROUP BY CategoryID, SupplierID
+HAVING COUNT(*) > 1;
+Отработка на рандомных значениях 
+https://sqlize.online/sql/psql14/51af428e7ab8d9bb79e5403001f77fb0/
+Сколько было куплено штук товара, принесшего компании максимальную выручку?
+SELECT
+    SUM(Quantity) AS TotalSoldQuantity
+FROM
+    OrderDetails
+GROUP BY
+    ProductID
+ORDER BY
+    SUM((UnitPrice * (1 - Discount)) * Quantity) DESC
+LIMIT 1;
+
+
+https://sqlize.online/sql/psql14/58aa919a21cf23d5b6892df10595e026/
+
+Это простая формула. Но если учесть, что таких товаров может быть несколько с равной выручкой, то чтобы не потерять второе равное значение лучше взять оконную функцию.
+WITH RevenuePerProduct AS (
+    SELECT
+        ProductID,
+        SUM((UnitPrice * (1 - Discount)) * Quantity) AS TotalRevenue,
+        SUM(Quantity) AS TotalSoldQuantity,
+        ROW_NUMBER() OVER (ORDER BY SUM((UnitPrice * (1 - Discount)) * Quantity) DESC) AS RowNum
+    FROM
+        OrderDetails
+    GROUP BY
+        ProductID
+)
+SELECT
+    TotalSoldQuantity
+FROM
+    RevenuePerProduct
+WHERE
+    RowNum = 1;
+
+
+
+Отработка кода
+https://sqlize.online/sql/psql14/ed0c634487411bca7b27dabedf2ce911/
+
+
+
+
+В какие месяцы один и тот же покупатель обслуживался у разных продавцов?
+Комментарий: С учетом, что в таблице месяца могут быть разных годов.
+SELECT 
+    EXTRACT(YEAR FROM OrderDate) AS Year,
+    EXTRACT(MONTH FROM OrderDate) AS Month,
+    CustomerID,
+    COUNT(DISTINCT EmployeeID) AS UniqueEmployeeCount
+FROM 
+    Orders
+GROUP BY 
+    EXTRACT(YEAR FROM OrderDate),
+    EXTRACT(MONTH FROM OrderDate),
+    CustomerID
+HAVING 
+    COUNT(DISTINCT EmployeeID) > 1;
+Отработка кода https://sqlize.online/sql/psql14/5c65fb1e1187c38e05b2b9e5740dd538/
+
+
+ 
+Задачи на подзапросы и джойны (можно решить любым способом – подзапросами или джойнами):
+Какие товары (названия) продавались по цене, отличающейся от текущей?
+Цена  с учетом discount, то есть отнимем где он есть от цены в заказе.
+SELECT 
+    ProductName
+FROM 
+    Products
+WHERE 
+    ProductID IN (
+        SELECT DISTINCT ProductID 
+        FROM OrderDetails 
+        WHERE 
+            UnitPrice - (UnitPrice * Discount) != 
+            (SELECT UnitPrice FROM Products WHERE Products.ProductID = OrderDetails.ProductID)
+    );
+
+
+https://sqlize.online/sql/psql14/b4cc7b9c0b179ded48f53a87d462dde7/
+
+
+
+
+Как зовут покупателей, которые потратили в 1997 году меньше 1000 рублей?
+SELECT DISTINCT c.ContactName
+FROM Orders o
+LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
+WHERE 
+    EXTRACT(YEAR FROM o.OrderDate) = 1997
+    AND
+    (
+        SELECT SUM((od.UnitPrice * (1 - od.Discount)) * od.Quantity)
+        FROM OrderDetails od
+        WHERE od.OrderID = o.OrderID
+    ) < 1000;
+
+
+https://sqlize.online/sql/psql14/caa5e39dc48fe7bac27dfc9c83c26854/
+
+
+Как зовут покупателей, которые потратили в 1997 году меньше 1000 рублей на морепродукты (товарная категория Seafood)?
+
+
+
+
+SELECT DISTINCT c.ContactName
+FROM Orders o
+LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
+JOIN OrderDetails od ON o.OrderID = od.OrderID
+JOIN Products p ON od.ProductID = p.ProductID
+JOIN Categories cat ON p.CategoryID = cat.CategoryID
+WHERE EXTRACT(YEAR FROM o.OrderDate) = 1997
+  AND cat.CategoryName = 'Seafood'
+GROUP BY c.ContactName
+HAVING SUM((od.UnitPrice * (1 - od.Discount)) * od.Quantity) < 1000;
+
+https://sqlize.online/sql/psql14/bcdfe348c9afc607b8fe2e169d91de67/
