@@ -1,0 +1,90 @@
+				
+таблица	поля	описание		
+fct_shipment	amount	выручка		
+	client_id	уникальный номер клиента		
+	time_id_month	id месяца в формате YYYYMM		
+	state_id	id состояния отправки		
+	sales_territory_id	id территории продаж		
+				
+dim_sales_territory	sales_territory_id	id территории продаж		
+	sales_territory_name	название территории продаж		
+				
+dim_state 	state_id	id состояния отправки		
+	state_code	код состояния отправки, может принимать конечные значения: "СО" и "ДО" и промежуточные значения: "ВД", "ВЛ", "ВМ"		
+				
+				
+задание 1				
+показать выручку за январь 2021г по отправкам с конечными статусами (по каждому статусу отдельно)				
+"Запрос для выборки выручки за январь 2021 года по отправкам с конечными статусами
+SELECT 
+    state_code,
+    SUM(amount) AS total_revenue
+FROM 
+    fct_shipment
+JOIN 
+    dim_state ON dim_state.state_id = fct_shipment.state_id
+WHERE 
+    time_id_month = '202101'  
+    AND state_code IN ('СО', 'ДО') -- Выбираем только конечные статусы
+GROUP BY 
+    state_code;"				
+https://sqlize.online/sql/mysql80/ae54202f92d09ebcf7446dea8accddb5/	Отработка на рандомных значениях. Проверка			
+				
+задание 2				
+показать топ 10 территорий продаж помесячно за 2020год с выручкой каждой территории. Выручку считать только по отправкам с конечными статусами				
+"SELECT 
+    SUBSTRING(f.time_id_month, 5, 2) AS month,
+    d.sales_territory_name,
+    SUM(f.amount) AS total_revenue
+FROM fct_shipment f
+JOIN 
+    dim_state s ON s.state_id = f.state_id
+JOIN 
+    dim_sales_territory d ON d.sales_territory_id = f.sales_territory_id
+WHERE 
+    f.time_id_month LIKE '2020%' -- Выбираем только данные за 2020 год
+    AND s.state_code IN ('СО', 'ДО') -- Выбираем только конечные статусы
+GROUP BY SUBSTRING(f.time_id_month, 5, 2), d.sales_territory_name
+ORDER BY month, total_revenue DESC LIMIT 10;"				
+https://sqlize.online/sql/mysql80/7aed5f73ca827a730c6dbb2d8ad7e4c1/	Отработка на рандомных значениях. Проверка			
+				
+задание 3				
+показать в сколько месяцев 2020г делала отправку каждая территория продаж. Если территория продаж не делала отправок в 2020 вывести для нее 0				
+для каждой территории присвоить одну из трех групп по количеству месяцев продаж: "11-12 мес.", "1-11 мес.", "0" мес.				
+"WITH RECURSIVE sales_months AS (
+    SELECT 
+        f.sales_territory_id,
+        COUNT(DISTINCT SUBSTRING(f.time_id_month, 5, 2)) AS months_count
+    FROM  fct_shipment f
+    JOIN   dim_state s ON s.state_id = f.state_id
+    WHERE 
+        f.time_id_month LIKE '2020%' -- Выбираем только данные за 2020 год
+        AND s.state_code IN ('СО', 'ДО') -- Выбираем только конечные статусы
+    GROUP BY  f.sales_territory_id
+)
+SELECT 
+    d.sales_territory_name, COALESCE(s.months_count, 0) AS months_count,
+    CASE 
+        WHEN COALESCE(s.months_count, 0) >= 11 THEN '11-12 мес.'
+        WHEN COALESCE(s.months_count, 0) > 0 THEN '1-11 мес.'
+        ELSE '0 мес.'
+    END AS sales_group FROM dim_sales_territory d
+LEFT JOIN sales_months s ON d.sales_territory_id = s.sales_territory_id;"				
+https://sqlize.online/sql/mysql80/9385f32ea0aaeaa8f80701613cc750f6/	Отработка на рандомных значениях. Проверка			
+				
+				
+задание 4				
+вывести три столбца: месяц (по порядку от января до декабря), выручка за этот месяц, выручка с начала года нарастающим итогом. (сделала ограничение одним 2020 годом)				
+"SELECT 
+    SUBSTRING(f.time_id_month, 5, 2) AS month,
+    SUM(f.amount) AS monthly_revenue,
+    SUM(SUM(f.amount)) OVER (ORDER BY SUBSTRING(f.time_id_month, 5, 2)) AS cumulative_revenue
+FROM fct_shipment f
+JOIN dim_state s ON s.state_id = f.state_id
+WHERE 
+    f.time_id_month BETWEEN '202001' AND '202012' -- Ограничиваем период с января по декабрь 2020 года
+    AND s.state_code IN ('СО', 'ДО') -- Выбираем только конечные статусы
+GROUP BY  SUBSTRING(f.time_id_month, 5, 2)
+ORDER BY SUBSTRING(f.time_id_month, 5, 2);"				
+				
+https://sqlize.online/sql/mysql80/8a09ac47db905d9d72aedf8c80bd827f/	Отработка на рандомных значениях. Проверка			
